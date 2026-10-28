@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Copies functions/src/shared (types, Zod schemas, helpers) into admin/src/shared and
 // mobile/src/shared. Run after editing the shared files; `--check` fails if copies drift (CI).
-import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
@@ -23,8 +23,7 @@ for (const target of targets) {
         drift = true;
       }
     } else {
-      cpSync(join(src, f), path);
-      const { writeFileSync } = await import('node:fs');
+      mkdirSync(target, { recursive: true });
       writeFileSync(path, want);
     }
   }

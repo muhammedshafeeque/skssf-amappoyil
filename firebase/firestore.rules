@@ -93,6 +93,11 @@ service cloud.firestore {
       }
     }
 
+    // Equipment history across items (patient page).
+    match /{path=**}/assignments/{assignmentId} {
+      allow read: if isStaff();
+    }
+
     match /posts/{id} {
       allow read: if isStaff() || (isMember() && resource.data.status == 'published');
       allow create, update: if isAdmin() && stamped();
