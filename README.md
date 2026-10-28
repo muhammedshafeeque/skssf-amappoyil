@@ -1,32 +1,49 @@
-# SKSSF Amappoyil Unit App (SKAMP)
+# SKSSF Amappoyil Unit App
 
-Firebase backend, Expo member app and React web admin for the SKSSF Amappoyil unit.
-
-| Path | What | Run |
+| Folder | What | Stack |
 |---|---|---|
-| `functions/` | Cloud Functions (TypeScript, Node 22) + emulator tests | `cd functions && npm i && npm test` |
-| `admin/` | Web admin — Vite + React + MUI | `cd admin && npm i && npm run dev` |
-| `mobile/` | Member app — Expo + React Native Firebase | `cd mobile && npm i && npx expo start` |
-| `firebase/` | Firestore / Storage rules and indexes | |
-| `docs/` | Plan (01–09) and per-task evidence | |
+| `functions/` | Backend: Cloud Functions + emulator tests | Firebase Functions v2, Node 22, TypeScript |
+| `admin/` | Web admin for office-bearers | React + Vite + MUI |
+| `skssf-amp/` | Member mobile app | React Native + Expo + React Native Firebase |
+| `firebase/` | Firestore / Storage security rules and indexes | |
 
-Each project is standalone (own `package.json` and lockfile). Shared types and Zod schemas live in
-`functions/src/shared/` and are copied to `admin/src/shared/` and `mobile/src/shared/` with
-`node scripts/sync-shared.mjs`.
+Each folder is a standalone npm project. Shared types and Zod schemas live in
+`functions/src/shared/`; after editing them run `node scripts/sync-shared.mjs` to copy them into
+`admin/src/shared/` and `skssf-amp/src/shared/`.
 
-## Plan
-1. [Overview](docs/01-overview.md) · 2. [Architecture](docs/02-architecture.md) ·
-3. [Data model](docs/03-data-model.md) · 4. [Security rules](docs/04-security-rules.md) ·
-5. [Cloud Functions](docs/05-cloud-functions.md) · 6. [Screens](docs/06-screens.md) ·
-7. [Auth flow](docs/07-auth-flow.md) · 8. [Roadmap](docs/08-roadmap.md) · 9. [Risks](docs/09-risks.md)
+## Run locally (emulators)
 
-## Firebase
-| Alias | Project | Notes |
-|---|---|---|
-| `dev` (default) | `skssf-158ed` | Dev project |
-| emulators | `demo-skamp` | Local only — never touches real resources |
+Requires Node 22+, Java 21+ and firebase-tools.
 
-Emulators need **Java 21+**: `firebase emulators:start --project demo-skamp`.
+```bash
+cd functions && npm install && npm run emulators   # terminal 1 (auth, firestore, functions, storage, UI :4000)
+cd functions && npm run seed                      # terminal 2: demo data + logins
+cd admin && npm install && npm run dev:emulator   # admin at http://localhost:5173
+```
 
-Phone Auth test numbers on the dev project (no SMS sent): +91 99999 00001 → 111111,
+Seeded logins: `admin@skamp.test` / `Passw0rd!` (super admin), `sahajari@skamp.test` / `Passw0rd!`
+(coordinator). Members log in with `SKAMP001`…`SKAMP008` (phones `+91 90000 00001`…); the
+emulator prints the OTP in its log.
+
+## Tests
+
+```bash
+cd functions && npm test                 # unit tests (schemas, helpers)
+cd functions && npm run test:emulators   # integration + security-rules tests against emulators
+cd admin && npm run build
+cd skssf-amp && npm run typecheck && npx expo-doctor
+```
+
+## Deploy (dev project `skssf-158ed`)
+
+Needs the Blaze plan (Cloud Functions, phone SMS, backups).
+
+```bash
+cd functions && npm run bootstrap-super-admin -- --project skssf-158ed --email you@example.com
+firebase deploy --only firestore,storage,functions,hosting
+```
+
+Mobile builds: `cd skssf-amp && npx eas-cli build --profile preview` (Android APK for testing).
+
+Phone Auth test numbers on the dev project (no SMS): +91 99999 00001 → 111111,
 +91 99999 00002 → 222222, +91 99999 00003 → 333333.

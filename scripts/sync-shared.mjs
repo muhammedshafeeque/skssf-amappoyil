@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Copies functions/src/shared (types, Zod schemas, helpers) into admin/src/shared and
-// mobile/src/shared. Run after editing the shared files; `--check` fails if copies drift (CI).
+// skssf-amp/src/shared. Run after editing the shared files; `--check` fails if copies drift (CI).
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
 const src = join(root, 'functions/src/shared');
-const targets = ['admin/src/shared', 'mobile/src/shared'].map((t) => join(root, t));
+const targets = ['admin/src/shared', 'skssf-amp/src/shared'].map((t) => join(root, t));
 const files = readdirSync(src).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'));
 const header = '// GENERATED from functions/src/shared by scripts/sync-shared.mjs — edit there, not here.\n';
 const check = process.argv.includes('--check');
