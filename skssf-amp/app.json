@@ -59,6 +59,10 @@
     "experiments": {
       "typedRoutes": false,
       "reactCompiler": true
-    }
+    },
+    "platforms": [
+      "android",
+      "ios"
+    ]
   }
 }
