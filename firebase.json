@@ -1,0 +1,24 @@
+{
+  "firestore": {
+    "rules": "firebase/firestore.rules",
+    "indexes": "firebase/firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "firebase/storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "nodejs22",
+      "ignore": ["node_modules", "src", "test", "*.log", "build.mjs", "tsconfig.json", "vitest.config.ts"],
+      "predeploy": ["pnpm --filter @skamp/functions build"]
+    }
+  ],
+  "hosting": {
+    "public": "apps/admin/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "predeploy": ["pnpm --filter @skamp/admin build"]
+  }
+}
