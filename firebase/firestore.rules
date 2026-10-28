@@ -1,9 +1,117 @@
 rules_version = '2';
 
-// Locked down until the role-based rules land (SKAMP-95). Cloud Functions use the
-// Admin SDK and are not affected by these rules.
+// Roles come from custom claims set by Cloud Functions: super_admin, admin,
+// sahajari_coordinator, member (+ memberId). Anything that must stay consistent
+// (member IDs, phone index, blood sync, approvals, equipment issue/return) is
+// written only by functions with the Admin SDK, which bypasses these rules.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null && request.auth.token.role != null; }
+    function role() { return request.auth.token.role; }
+    function isAdmin() { return signedIn() && role() in ['super_admin', 'admin']; }
+    function isStaff() { return signedIn() && role() in ['super_admin', 'admin', 'sahajari_coordinator']; }
+    function isMember() { return signedIn() && role() == 'member'; }
+
+    // Every staff write must be stamped with who and when (the audit trail reads it).
+    function stamped() {
+      return request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+    }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    match /members/{memberId} {
+      allow read: if isStaff() || (isMember() && request.auth.token.memberId == memberId);
+      allow write: if false;
+    }
+
+    match /bloodDonors/{donorId} {
+      allow read: if isStaff() || (isMember() && resource.data.active == true);
+      // Admins manage non-member donors; consent is required.
+      allow create: if isAdmin() && stamped()
+        && request.resource.data.source == 'non_member'
+        && request.resource.data.memberId == null
+        && request.resource.data.consent.given == true;
+      // Non-member donors: any field. Member donors: only donor-owned fields (rest is synced).
+      allow update: if isAdmin() && stamped() && (
+        (resource.data.source == 'non_member' && request.resource.data.source == 'non_member')
+        || (resource.data.source == 'member'
+            && changed().hasOnly(['location', 'isLocal', 'lastDonated', 'available', 'hideNumber', 'updatedAt', 'updatedBy']))
+      );
+      allow delete: if isAdmin() && resource.data.source == 'non_member';
+    }
+
+    match /settings/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin() && stamped();
+    }
+
+    match /staff/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /committee/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin() && (request.method == 'delete' || stamped());
+    }
+
+    match /patients/{id} {
+      allow read: if isStaff();
+      allow create, update: if isStaff() && stamped();
+      allow delete: if isAdmin();
+    }
+
+    match /patientsPublic/{id} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /donations/{id} {
+      allow read: if isStaff();
+      allow create, update: if isStaff() && stamped();
+      allow delete: if isAdmin();
+    }
+
+    match /equipment/{id} {
+      allow read: if signedIn();
+      allow create: if isStaff() && stamped()
+        && request.resource.data.status == 'available'
+        && request.resource.data.currentAssignment == null;
+      // Issue/return go through functions; staff may edit details or move an item that isn't
+      // assigned between available / maintenance / retired.
+      allow update: if isStaff() && stamped()
+        && !changed().hasAny(['currentAssignment'])
+        && (!changed().hasAny(['status'])
+            || (resource.data.status != 'assigned'
+                && request.resource.data.status in ['available', 'maintenance', 'retired']));
+      allow delete: if isAdmin() && resource.data.status != 'assigned';
+
+      match /assignments/{assignmentId} {
+        allow read: if isStaff();
+        allow write: if false;
+      }
+    }
+
+    match /posts/{id} {
+      allow read: if isStaff() || (isMember() && resource.data.status == 'published');
+      allow create, update: if isAdmin() && stamped();
+      allow delete: if isAdmin();
+    }
+
+    match /requests/{id} {
+      allow read: if (isMember() && resource.data.requestedBy.uid == request.auth.uid)
+        || isAdmin()
+        || (isStaff() && resource.data.type in ['patient_add']);
+      allow write: if false;
+    }
+
+    match /auditLogs/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // counters, phoneIndex, skssfIndex, pushTokens, rateLimits and anything else: functions only.
     match /{document=**} {
       allow read, write: if false;
     }
